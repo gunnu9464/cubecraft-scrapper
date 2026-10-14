@@ -1,7 +1,10 @@
 name: CubeCraft Turbo Scraper
 
 on:
-  workflow_dispatch: # Allows you to click a button to run it whenever you want!
+  workflow_dispatch:
+
+permissions:
+  contents: write  # <--- This gives the bot permission to save the file back to the repo
 
 jobs:
   scrape:
