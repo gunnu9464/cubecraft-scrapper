@@ -1,4 +1,4 @@
-import cloudscraper
+from curl_cffi import requests
 from bs4 import BeautifulSoup
 import json
 import time
@@ -10,7 +10,6 @@ import gc
 
 BASE_URL = "https://www.cubecraft.net"
 
-# Your custom target URLs
 TARGET_URLS = [
     "https://www.cubecraft.net/forums/game-discussions.153/",
     "https://www.cubecraft.net/forums/suggestions/",
@@ -28,32 +27,19 @@ OUTPUT_FILE = "cubecraft_forum_data.jsonl"
 file_lock = threading.Lock()
 MAX_WORKERS = 25
 
-# START FRESH: Clear output file completely and start with an empty set
 with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
     pass
 scraped_urls = set()
 print("[*] Started fresh from 0. Previous data cleared.")
 
-def get_scraper():
-    s = cloudscraper.create_scraper(
-        browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
-    )
-    s.headers.update({
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.cubecraft.net/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    })
-    return s
-
 def scrape_thread(url):
     if url in scraped_urls:
         return None
         
-    scraper = get_scraper()
     try:
-        time.sleep(random.uniform(0.1, 0.6))  # Ultra-fast 0.1-0.6s delay
-        t_res = scraper.get(url, timeout=10)
+        time.sleep(random.uniform(0.1, 0.6))
+        # Use curl_cffi to impersonate Chrome TLS fingerprint
+        t_res = requests.get(url, impersonate="chrome", timeout=10)
         if t_res.status_code != 200:
             return None
         
@@ -98,8 +84,7 @@ def scrape_thread(url):
         pass
     return None
 
-print(f"=== FRESH ULTRA TURBO SCRAPER ({MAX_WORKERS} Workers, 0.1-0.6s) Active ===")
-main_scraper = get_scraper()
+print(f"=== CURL-CFFI TURBO SCRAPER ({MAX_WORKERS} Workers) Active ===")
 
 for target in TARGET_URLS:
     if "/threads/" in target or "help.cubecraft.net" in target:
@@ -116,7 +101,7 @@ for target in TARGET_URLS:
         
         try:
             time.sleep(random.uniform(0.1, 0.4))
-            res = main_scraper.get(target_url, timeout=10)
+            res = requests.get(target_url, impersonate="chrome", timeout=10)
             
             if res.status_code != 200 or "Page not found" in res.text:
                 print(f"  -> Reached end of pagination at page {page-1}.")
@@ -137,9 +122,8 @@ for target in TARGET_URLS:
                 print(f"  -> No threads found on page {page}.")
                 break
 
-            # CORRECTED Safeguard: Check if the ENTIRE page link list matches the previous page (true XenForo redirect)
             if page > 1 and set(thread_links) == set(last_page_links):
-                print(f"  -> XenForo silent redirect detected at page {page} (mirrors previous page). Max page reached.")
+                print(f"  -> XenForo silent redirect detected at page {page}. Max page reached.")
                 break
             last_page_links = thread_links
 
@@ -155,4 +139,4 @@ for target in TARGET_URLS:
             print(f"  [!] Error on page {page}: {e}")
             break
             
-print(f"\n[✔] Fresh scraping complete! Total unique items saved: {len(scraped_urls)}")
+print(f"\n[✔] Scraping complete! Total unique items saved: {len(scraped_urls)}")
